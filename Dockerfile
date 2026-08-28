@@ -4,8 +4,8 @@ WORKDIR /opt/node_app
 
 COPY . .
 
-# Install yarn globally
-RUN npm install -g yarn@1.22.22
+# Install yarn globally (with --force to overwrite if exists)
+RUN npm install -g --force yarn@1.22.22
 
 # do not ignore optional dependencies:
 RUN --mount=type=cache,target=/root/.cache/yarn \
