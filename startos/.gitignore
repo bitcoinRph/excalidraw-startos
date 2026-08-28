@@ -1,0 +1,11 @@
+# the repo root .gitignore ignores package-lock.json (yarn repo); this
+# npm-managed wrapper needs its lockfile tracked for reproducible `npm ci`
+!package-lock.json
+*.s9pk
+startos/*.js
+node_modules/
+.DS_Store
+.vscode/
+docker-images
+javascript
+ncc-cache
