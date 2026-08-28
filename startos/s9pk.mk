@@ -2,7 +2,10 @@
 # This file is imported by ./Makefile. Make edits there
 
 PACKAGE_ID := $(shell awk -F"'" '/id:/ {print $$2}' startos/manifest/index.ts)
-INGREDIENTS := $(shell start-cli s9pk list-ingredients 2>/dev/null)
+# Build-only commands override the host so CI runners without mDNS for the
+# workspace's dev host profile (dev-vm.local) don't fail name resolution.
+# install/publish keep their configured hosts.
+INGREDIENTS := $(shell start-cli -H http://localhost s9pk list-ingredients 2>/dev/null)
 ARCHES ?= x86 arm riscv
 TARGETS ?= arches
 ifdef VARIANT
@@ -16,7 +19,7 @@ endif
 .SECONDARY:
 
 define SUMMARY
-	@manifest=$$(start-cli s9pk inspect $(1) manifest); \
+	@manifest=$$(start-cli -H http://localhost s9pk inspect $(1) manifest); \
 	size=$$(du -h $(1) | awk '{print $$1}'); \
 	title=$$(printf '%s' "$$manifest" | jq -r .title); \
 	version=$$(printf '%s' "$$manifest" | jq -r .version); \
@@ -58,12 +61,12 @@ GIT_DEPS := $(if $(GIT_DIR),$(wildcard $(GIT_DIR)/HEAD $(GIT_DIR)/index))
 $(BASE_NAME).s9pk: $(INGREDIENTS) $(GIT_DEPS)
 	@$(MAKE) --no-print-directory ingredients
 	@echo "   Packing '$@'..."
-	start-cli s9pk pack -o $@
+	start-cli -H http://localhost s9pk pack -o $@
 
 $(BASE_NAME)_%.s9pk: $(INGREDIENTS) $(GIT_DEPS)
 	@$(MAKE) --no-print-directory ingredients
 	@echo "   Packing '$@'..."
-	start-cli s9pk pack --arch=$* -o $@
+	start-cli -H http://localhost s9pk pack --arch=$* -o $@
 
 ingredients: $(INGREDIENTS)
 	@echo "   Re-evaluating ingredients..."

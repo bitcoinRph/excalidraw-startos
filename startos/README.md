@@ -37,7 +37,12 @@ The `.github/workflows/release-s9pk.yml` workflow builds both `.s9pk`s and publi
 
 ### StartOS compatibility
 
-The wrapper pins `@start9labs/start-sdk` **0.4.0-beta.48** (with `start-cli` v0.4.0-beta.9 in CI), which stamps `osVersion: 0.4.0-alpha.18` into the package — installable on every released StartOS 0.4.0 build. Newer SDK lines (0.4.0 final / 2.x) stamp `osVersion: 0.4.0-beta.10`, which **no released StartOS accepts yet**; a package built with them sideloads silently without installing. Bump the SDK and `start-cli` together, deliberately, once a matching StartOS release exists.
+Two independent version contracts matter:
+
+- **SDK (`@start9labs/start-sdk`)**: pinned to exactly **0.4.0-beta.48**, which stamps `osVersion: 0.4.0-alpha.18` into the manifest — installable on every current StartOS 0.4.0 build. Newer SDK lines (0.4.0 final / 2.x) stamp `osVersion: 0.4.0-beta.10`, which released servers reject. Bump deliberately once a matching StartOS release exists.
+- **Packer (`start-cli`)**: always install the **latest `start-cli/*` release** from `Start9Labs/start-technologies` (e.g. `start-cli/v1.1.0`) — the dedicated release series for the CLI. Do **not** use the CLI binary attached to the plain `v0.4.0-beta.*` releases (other StartOS components): it packs an older s9pk layout that current servers reject at sideload with `file size is less than requested`.
+
+Packing also requires a **packaging workspace**: run `start-cli s9pk init-workspace .` once in the repo root (it provisions `.startos/` with the build key — never commit it). Build-only commands pass `-H http://localhost` (see `s9pk.mk`) so the workspace's dev host profile isn't resolved during pack.
 
 ## Image and Container Runtime
 
