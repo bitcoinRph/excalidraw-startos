@@ -15,7 +15,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * client-side in the browser; the container itself is stateless.
    */
   return sdk.Daemons.of(effects).addDaemon('primary', {
-    subcontainer: sdk.SubContainer.of(
+    subcontainer: await sdk.SubContainer.of(
       effects,
       { imageId: 'excalidraw' },
       sdk.Mounts.of().mountVolume({
