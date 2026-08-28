@@ -2,6 +2,8 @@
 # npm-managed wrapper needs its lockfile tracked for reproducible `npm ci`
 !package-lock.json
 *.s9pk
+# packaging workspace (holds the signing key — never commit)
+.startos/
 startos/*.js
 node_modules/
 .DS_Store

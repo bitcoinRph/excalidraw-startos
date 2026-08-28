@@ -9,3 +9,6 @@ packages/excalidraw/types
 examples/**/public
 dev-dist
 coverage
+# StartOS packaging workspace — independent npm project with its own
+# toolchain (SDK prettier config, tsc, SDK lint); not part of the app lint
+startos/
