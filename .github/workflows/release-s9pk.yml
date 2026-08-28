@@ -50,23 +50,28 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # start-cli is published as prebuilt binaries on Start9Labs/start-technologies
-      # releases. Pinned so builds stay reproducible and matched to the SDK
-      # generation in startos/package.json — bump both together, deliberately.
+      # Resolve the latest start-cli/* release on Start9Labs/start-technologies —
+      # the release series for the packing tool itself. Do NOT use the plain
+      # v0.4.0-beta.* releases (those are other StartOS components; the CLI they
+      # carry packs an older s9pk layout that current servers reject with
+      # "file size is less than requested").
       - name: Install start-cli
-        env:
-          START_CLI_TAG: v0.4.0-beta.9
         run: |
-          ASSET_NAME="start-cli_$(uname -m)-$(uname -s | tr '[:upper:]' '[:lower:]')"
-          curl -fsSL \
-            "https://github.com/Start9Labs/start-technologies/releases/download/${START_CLI_TAG}/${ASSET_NAME}" \
-            -o /tmp/start-cli
+          url="$(curl -fsSL \
+            -H "Authorization: token ${{ github.token }}" \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            'https://api.github.com/repos/Start9Labs/start-technologies/releases?per_page=20' \
+            | jq -r '[.[] | select(.tag_name | startswith("start-cli/")) | .assets[] | select(.name == "start-cli_x86_64-linux") | .browser_download_url][0] // empty')"
+          if [ -z "$url" ]; then
+            echo "::error::Unable to find start-cli_x86_64-linux in Start9Labs/start-technologies start-cli releases"
+            exit 1
+          fi
+          curl -fsSL "$url" -o /tmp/start-cli
           sudo install -m 755 /tmp/start-cli /usr/local/bin/start-cli
           start-cli --version
 
       # Sign with the repository's DEV_KEY secret when configured; otherwise
-      # generate an ephemeral key (fine for sideloading). The key is also
-      # provisioned as the packaging workspace build key.
+      # generate an ephemeral key (fine for sideloading).
       - name: Set up signing key
         run: |
           mkdir -p ~/.startos
@@ -76,9 +81,18 @@ jobs:
           else
             start-cli init-key
           fi
-          mkdir -p .startos
-          KEY=$(ls ~/.startos/developer.key.pem ~/.startos/id.key.pem 2>/dev/null | head -1)
-          cp "$KEY" .startos/build.key.pem
+        env:
+          DEV_KEY: ${{ secrets.DEV_KEY }}
+
+      # Current start-cli requires a packaging workspace in the parent of the
+      # package directory; this provisions .startos/ (incl. the build key) at
+      # the repo checkout root.
+      - name: Initialize packaging workspace
+        run: |
+          start-cli s9pk init-workspace ..
+          if [ -n "$DEV_KEY" ]; then
+            printf '%s' "$DEV_KEY" > ../.startos/build.key.pem
+          fi
         env:
           DEV_KEY: ${{ secrets.DEV_KEY }}
 

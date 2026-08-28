@@ -27,3 +27,8 @@ dev-dist
 html
 meta*.json
 .claude
+
+# StartOS packaging workspace artifacts (created by start-cli s9pk init-workspace)
+/.startos/
+/start-technologies/
+AGENTS.local.md
