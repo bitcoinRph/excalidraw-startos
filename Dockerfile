@@ -4,8 +4,10 @@ WORKDIR /opt/node_app
 
 COPY . .
 
+# Install yarn globally
+RUN npm install -g yarn@1.22.22
+
 # do not ignore optional dependencies:
-# Error: Cannot find module @rollup/rollup-linux-x64-gnu
 RUN --mount=type=cache,target=/root/.cache/yarn \
     npm_config_target_arch=${TARGETARCH} yarn --frozen-lockfile --network-timeout 600000
 
@@ -14,6 +16,9 @@ ARG NODE_ENV=production
 RUN npm_config_target_arch=${TARGETARCH} yarn build:app:docker
 
 FROM nginx:stable-alpine-slim@sha256:2c605dbeab79a6b2a63340474fe58119d0ef95bdc4b1f41df0aa689659b3d13b
+
+# Install wget for healthcheck
+RUN apk add --no-cache wget
 
 COPY --from=build /opt/node_app/excalidraw-app/build /usr/share/nginx/html
 
