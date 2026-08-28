@@ -8,15 +8,15 @@ name: Release s9pk
 
 on:
   push:
-    branches: ['master']
+    branches: ["master"]
     paths:
-      - 'startos/**'
-      - 'Dockerfile'
-      - 'excalidraw-app/**'
-      - 'packages/**'
-      - 'public/**'
-      - 'package.json'
-      - 'yarn.lock'
+      - "startos/**"
+      - "Dockerfile"
+      - "excalidraw-app/**"
+      - "packages/**"
+      - "public/**"
+      - "package.json"
+      - "yarn.lock"
   workflow_dispatch:
 
 concurrency:
@@ -38,10 +38,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools-ng
+        # start-cli s9pk pack needs both mksquashfs (squashfs-tools) and the -ng tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools squashfs-tools-ng
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

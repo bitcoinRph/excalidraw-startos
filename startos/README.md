@@ -4,10 +4,7 @@
 
 # Excalidraw on StartOS
 
-> Everything not listed in this document should behave the same as upstream
-> Excalidraw. If a feature, setting, or behavior is not mentioned here, the
-> upstream documentation is accurate and fully applicable — see
-> <https://docs.excalidraw.com/>.
+> Everything not listed in this document should behave the same as upstream Excalidraw. If a feature, setting, or behavior is not mentioned here, the upstream documentation is accurate and fully applicable — see <https://docs.excalidraw.com/>.
 
 [Excalidraw](https://github.com/excalidraw/excalidraw) is an open-source virtual whiteboard with a hand-drawn aesthetic. This repository is a fork of the upstream Excalidraw monorepo with a StartOS service package added in this `startos/` directory: the package builds the repository's own `Dockerfile` (a static build of `excalidraw-app` served by nginx) into a `.s9pk` installable on a Start9 server.
 
@@ -18,7 +15,7 @@
 
 ## Repository layout
 
-Unlike most StartOS wrapper repos, the upstream source is not a submodule — this repo *is* the upstream source (a fork), and the StartOS packaging lives entirely in `startos/`. The image is built from the repo root's `Dockerfile` (`dockerBuild` with `workdir: '..'`), so an upstream update is a merge from `excalidraw/excalidraw` plus a version bump in `startos/startos/versions/current.ts`.
+Unlike most StartOS wrapper repos, the upstream source is not a submodule — this repo _is_ the upstream source (a fork), and the StartOS packaging lives entirely in `startos/`. The image is built from the repo root's `Dockerfile` (`dockerBuild` with `workdir: '..'`), so an upstream update is a merge from `excalidraw/excalidraw` plus a version bump in `startos/startos/versions/current.ts`.
 
 ## Building
 
@@ -40,11 +37,11 @@ The `.github/workflows/release-s9pk.yml` workflow builds both `.s9pk`s and publi
 
 ## Image and Container Runtime
 
-| Property      | Value                                                     |
-| ------------- | --------------------------------------------------------- |
-| Image         | Built from `../Dockerfile` (static app + nginx runtime)   |
-| Architectures | x86_64, aarch64                                           |
-| Command       | `nginx -g 'daemon off;'`                                  |
+| Property      | Value                                                   |
+| ------------- | ------------------------------------------------------- |
+| Image         | Built from `../Dockerfile` (static app + nginx runtime) |
+| Architectures | x86_64, aarch64                                         |
+| Command       | `nginx -g 'daemon off;'`                                |
 
 | Subcontainer     | Purpose                                       |
 | ---------------- | --------------------------------------------- |
