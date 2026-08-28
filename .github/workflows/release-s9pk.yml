@@ -109,7 +109,7 @@ jobs:
       - name: Extract package version
         id: version
         run: |
-          VERSION=$(start-cli s9pk inspect excalidraw_x86_64.s9pk manifest | jq -r .version)
+          VERSION=$(start-cli -H http://localhost s9pk inspect excalidraw_x86_64.s9pk manifest | jq -r .version)
           if [ -z "$VERSION" ] || [ "$VERSION" = "null" ]; then
             echo "::error::Could not extract version from the packed s9pk manifest"
             exit 1
