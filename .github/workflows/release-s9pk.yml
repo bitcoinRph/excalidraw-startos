@@ -1,0 +1,120 @@
+name: Release s9pk
+
+# Build the StartOS package (.s9pk) and publish it as a GitHub release
+# whenever the package changes on master. The release is keyed to the
+# package version in startos/startos/versions/current.ts: bumping the
+# version creates a new release; other package changes rebuild and
+# refresh the assets of the release for the current version.
+
+on:
+  push:
+    branches: ['master']
+    paths:
+      - 'startos/**'
+      - 'Dockerfile'
+      - 'excalidraw-app/**'
+      - 'packages/**'
+      - 'public/**'
+      - 'package.json'
+      - 'yarn.lock'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: startos
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends squashfs-tools-ng
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # start-cli is published as prebuilt binaries on Start9Labs/start-technologies releases.
+      - name: Install start-cli
+        run: |
+          ASSET_NAME="start-cli_$(uname -m)-$(uname -s | tr '[:upper:]' '[:lower:]')"
+          DOWNLOAD_URL=$(curl -fsS \
+            -H "Authorization: token ${{ github.token }}" \
+            https://api.github.com/repos/Start9Labs/start-technologies/releases \
+            | jq -r '[.[].assets[] | select(.name=="'"$ASSET_NAME"'")] | first | .browser_download_url')
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "::error::Could not find asset '$ASSET_NAME' in Start9Labs/start-technologies releases"
+            exit 1
+          fi
+          curl -fsSL -H "Accept: application/octet-stream" "$DOWNLOAD_URL" -o /tmp/start-cli
+          sudo install -m 755 /tmp/start-cli /usr/local/bin/start-cli
+          start-cli --version
+
+      # Sign with the repository's DEV_KEY secret when configured; otherwise
+      # generate an ephemeral key (fine for sideloading). The key is also
+      # provisioned as the packaging workspace build key.
+      - name: Set up signing key
+        run: |
+          mkdir -p ~/.startos
+          if [ -n "$DEV_KEY" ]; then
+            printf '%s' "$DEV_KEY" > ~/.startos/developer.key.pem
+            cp ~/.startos/developer.key.pem ~/.startos/id.key.pem
+          else
+            start-cli init-key
+          fi
+          mkdir -p .startos
+          KEY=$(ls ~/.startos/developer.key.pem ~/.startos/id.key.pem 2>/dev/null | head -1)
+          cp "$KEY" .startos/build.key.pem
+        env:
+          DEV_KEY: ${{ secrets.DEV_KEY }}
+
+      - name: Install package dependencies
+        run: npm ci
+
+      - name: Build s9pks
+        run: |
+          make
+          echo ""
+          echo "SHA256SUMs:"
+          sha256sum *.s9pk | tee SHA256SUMS
+
+      - name: Extract package version
+        id: version
+        run: |
+          VERSION=$(grep -oP "version:\s*['\"]\K[^'\"]*" startos/versions/current.ts)
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not extract version from startos/versions/current.ts"
+            exit 1
+          fi
+          TAG="v${VERSION//:/_}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Version: ${VERSION} -> Tag: ${TAG}"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Excalidraw ${{ steps.version.outputs.version }}
+          body: |
+            StartOS package for Excalidraw, version `${{ steps.version.outputs.version }}` (built from ${{ github.sha }}).
+
+            Download the `.s9pk` for your server's architecture and sideload it via the StartOS web UI (System → Sideload a Service).
+          files: |
+            startos/*.s9pk
+            startos/SHA256SUMS
