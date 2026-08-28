@@ -1,6 +1,6 @@
-import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
+import { VersionInfo } from '@start9labs/start-sdk'
 
-export const current = VersionInfo.of({
+export const v_0_18_0_0 = VersionInfo.of({
   version: '0.18.0:0',
   releaseNotes: {
     en_US: 'Initial release of Excalidraw for StartOS',
@@ -11,6 +11,6 @@ export const current = VersionInfo.of({
   },
   migrations: {
     up: async ({ effects }) => {},
-    down: IMPOSSIBLE,
+    down: async ({ effects }) => {},
   },
 })

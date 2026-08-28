@@ -33,7 +33,11 @@ The static site is built on the host platform inside the build stage (`FROM --pl
 
 ### CI releases
 
-The `.github/workflows/release-s9pk.yml` workflow builds both `.s9pk`s and publishes them as a GitHub release on every push to `master` that touches the package (the `startos/` wrapper, the `Dockerfile`, or the app source), and can also be run manually via workflow dispatch. Releases are keyed to the package version in `startos/startos/versions/current.ts` (tag `v<version>` with `:` mapped to `_`): bumping the version creates a new release, while other changes rebuild and refresh the current release's assets. Set a `DEV_KEY` repository secret (a StartOS developer key PEM) to sign CI builds with a stable identity; without it each run signs with an ephemeral key, which is fine for sideloading.
+The `.github/workflows/release-s9pk.yml` workflow builds both `.s9pk`s and publishes them as a GitHub release on every push to `master` that touches the package (the `startos/` wrapper, the `Dockerfile`, or the app source), and can also be run manually via workflow dispatch. Releases are keyed to the package version in `startos/startos/install/versions/` (tag `v<version>` with `:` mapped to `_`): bumping the version creates a new release, while other changes rebuild and refresh the current release's assets. Set a `DEV_KEY` repository secret (a StartOS developer key PEM) to sign CI builds with a stable identity; without it each run signs with an ephemeral key, which is fine for sideloading.
+
+### StartOS compatibility
+
+The wrapper pins `@start9labs/start-sdk` **0.4.0-beta.48** (with `start-cli` v0.4.0-beta.9 in CI), which stamps `osVersion: 0.4.0-alpha.18` into the package — installable on every released StartOS 0.4.0 build. Newer SDK lines (0.4.0 final / 2.x) stamp `osVersion: 0.4.0-beta.10`, which **no released StartOS accepts yet**; a package built with them sideloads silently without installing. Bump the SDK and `start-cli` together, deliberately, once a matching StartOS release exists.
 
 ## Image and Container Runtime
 
