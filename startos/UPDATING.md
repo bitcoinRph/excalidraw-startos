@@ -18,6 +18,6 @@ gh release view -R excalidraw/excalidraw --json tagName -q .tagName
 
 ## Applying the bump
 
-1. Merge the desired upstream state into this fork's `master` (`git fetch https://github.com/excalidraw/excalidraw.git master && git merge FETCH_HEAD`), resolving any conflicts with the `startos/` wrapper (the wrapper lives entirely in this directory, so conflicts are rare).
+1. Merge the desired upstream state into this fork's `master` (`git fetch https://github.com/excalidraw/excalidraw.git master && git merge FETCH_HEAD`). Most of the wrapper lives in this directory, but the server-scenes integration also touches app code — watch for conflicts in `excalidraw-app/App.tsx` (imports, two command-palette items, the `<ServerScenesDialog>` render) and keep `excalidraw-app/components/ServerScenesDialog.*` and `excalidraw-app/data/serverScenes.ts` (fork-only files, no upstream counterpart).
 2. Update `version` in `startos/versions/current.ts` to `<editor version>:0` (bump only the `:N` downstream revision for wrapper-only changes), and write the release notes.
 3. `make` — then install and verify per the packaging guide before releasing.
