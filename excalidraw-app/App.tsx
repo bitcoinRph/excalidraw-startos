@@ -46,7 +46,10 @@ import {
   exportToPlus,
   share,
   youtubeIcon,
+  LoadIcon,
+  save as saveIcon,
 } from "@excalidraw/excalidraw/components/icons";
+import { serializeAsJSON } from "@excalidraw/excalidraw/data/json";
 import { isElementLink } from "@excalidraw/element";
 import {
   bumpElementVersions,
@@ -106,6 +109,7 @@ import {
   ExportToExcalidrawPlus,
   exportToExcalidrawPlus,
 } from "./components/ExportToExcalidrawPlus";
+import { ServerScenesDialog } from "./components/ServerScenesDialog";
 import { TopErrorBoundary } from "./components/TopErrorBoundary";
 
 import {
@@ -129,6 +133,7 @@ import {
   LocalData,
   localStorageQuotaExceededAtom,
 } from "./data/LocalData";
+import { isServerScenesAvailable } from "./data/serverScenes";
 import { isBrowserStorageStateNewer } from "./data/tabSync";
 import { ShareDialog, shareDialogStateAtom } from "./share/ShareDialog";
 import CollabError, { collabErrorIndicatorAtom } from "./collab/CollabError";
@@ -150,6 +155,7 @@ import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanne
 import { AppSidebar } from "./components/AppSidebar";
 
 import type { CollabAPI } from "./collab/Collab";
+import type { ServerScenesMode } from "./components/ServerScenesDialog";
 
 polyfill();
 
@@ -377,6 +383,14 @@ const ExcalidrawWrapper = () => {
 
   const [errorMessage, setErrorMessage] = useState("");
   const isCollabDisabled = isRunningInIframe();
+
+  // server-side scene storage (self-hosted / StartOS builds only)
+  const [serverScenesDialog, setServerScenesDialog] =
+    useState<ServerScenesMode | null>(null);
+  const [serverScenesAvailable, setServerScenesAvailable] = useState(false);
+  useEffect(() => {
+    isServerScenesAvailable().then(setServerScenesAvailable);
+  }, []);
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
@@ -1108,6 +1122,37 @@ const ExcalidrawWrapper = () => {
           </ErrorDialog>
         )}
 
+        {serverScenesDialog && excalidrawAPI && (
+          <ServerScenesDialog
+            mode={serverScenesDialog}
+            initialName={excalidrawAPI.getName()}
+            getSceneJson={() =>
+              serializeAsJSON(
+                excalidrawAPI.getSceneElements(),
+                excalidrawAPI.getAppState(),
+                excalidrawAPI.getFiles(),
+                "local",
+              )
+            }
+            applyScene={async (blob) => {
+              const data = await loadFromBlob(
+                blob,
+                excalidrawAPI.getAppState(),
+                excalidrawAPI.getSceneElements(),
+              );
+              excalidrawAPI.updateScene({
+                elements: data.elements,
+                appState: data.appState,
+                captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+              });
+              if (data.files) {
+                excalidrawAPI.addFiles(Object.values(data.files));
+              }
+            }}
+            onClose={() => setServerScenesDialog(null)}
+          />
+        )}
+
         <CommandPalette
           customCommandPaletteItems={[
             {
@@ -1270,6 +1315,40 @@ const ExcalidrawWrapper = () => {
                     excalidrawAPI.getName(),
                   );
                 }
+              },
+            },
+            {
+              label: "Save to server",
+              category: DEFAULT_CATEGORIES.export,
+              icon: saveIcon,
+              predicate: () => serverScenesAvailable,
+              keywords: [
+                "server",
+                "scene",
+                "upload",
+                "store",
+                "startos",
+                "self-hosted",
+              ],
+              perform: () => {
+                setServerScenesDialog("save");
+              },
+            },
+            {
+              label: "Open from server",
+              category: DEFAULT_CATEGORIES.export,
+              icon: LoadIcon,
+              predicate: () => serverScenesAvailable,
+              keywords: [
+                "server",
+                "scene",
+                "download",
+                "load",
+                "startos",
+                "self-hosted",
+              ],
+              perform: () => {
+                setServerScenesDialog("open");
               },
             },
             {

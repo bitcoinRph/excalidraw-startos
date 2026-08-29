@@ -45,27 +45,46 @@ Packing requires a **packaging workspace** in the repo root (the parent of this 
 
 ## Image and Container Runtime
 
-| Property      | Value                                                   |
-| ------------- | ------------------------------------------------------- |
-| Image         | Built from `../Dockerfile` (static app + nginx runtime) |
-| Architectures | x86_64, aarch64                                         |
-| Command       | `nginx -g 'daemon off;'`                                |
+| Property      | Value                                                                     |
+| ------------- | ------------------------------------------------------------------------- |
+| Image         | Built from `../Dockerfile` (static app + nginx runtime + node for the API) |
+| Architectures | x86_64, aarch64                                                            |
 
-| Subcontainer     | Purpose                                       |
-| ---------------- | --------------------------------------------- |
-| `excalidraw-sub` | The `primary` daemon — the one to `attach` to |
+| Daemon    | Command                                    | Purpose                                             |
+| --------- | ------------------------------------------ | --------------------------------------------------- |
+| `api`     | `node /usr/lib/excalidraw-api/server.mjs`  | Scenes API sidecar (`startos/api/server.mjs`)       |
+| `primary` | `nginx -g 'daemon off;'`                   | Serves the app; proxies `/api` to the sidecar       |
+
+Both daemons share the single `excalidraw-sub` subcontainer (so nginx reaches the API on localhost); `primary` requires `api`.
 
 ## Volume and Data Layout
 
-| Volume | Mount Point | Purpose                             |
-| ------ | ----------- | ----------------------------------- |
-| `main` | `/data`     | Mounted, but the app writes nothing |
+| Volume    | Mount Point         | Purpose                                             |
+| --------- | ------------------- | --------------------------------------------------- |
+| `main`    | `/data`             | Server scenes live in `/data/scenes/*.excalidraw`   |
+| `startos` | _(never mounted)_   | `store.json` — the generated API token              |
 
-Excalidraw is a static single-page app: drawings live in the **browser's** local storage on the client device, not on the server. The volume exists to exercise the standard volume/backup paths, not because there is server-side state.
+The browser canvas itself still lives in the **browser's** local storage on the client device; only scenes explicitly saved to the server (via the app's command palette or the API) are stored in `main`.
+
+## Scenes API
+
+A dependency-free Node server (`startos/api/server.mjs`) listening on localhost:3040, reverse-proxied by nginx at the `/api` path of the UI port. Bearer-token auth (`Authorization: Bearer <token>`); fails closed (503) if no token is configured; `/api/health` is unauthenticated.
+
+| Route                 | Method | Purpose                             |
+| --------------------- | ------ | ----------------------------------- |
+| `/api/health`         | GET    | Liveness + whether auth is set (no auth) |
+| `/api/scenes`         | GET    | List scenes (`name`, `size`, `modified`) |
+| `/api/scenes/<name>`  | GET    | Fetch the `.excalidraw` document    |
+| `/api/scenes/<name>`  | PUT    | Save/overwrite (valid JSON object required, 64 MB max) |
+| `/api/scenes/<name>`  | DELETE | Delete                              |
+
+The web app integrates with the same API ("Save to server" / "Open from server" in the command palette — `excalidraw-app/components/ServerScenesDialog.tsx`, `excalidraw-app/data/serverScenes.ts`); the commands appear only when `/api/health` responds, so they never show on non-StartOS deployments.
 
 ## File Models
 
-None. There is no server-side configuration file.
+| File                       | Volume    | Contents                             |
+| -------------------------- | --------- | ------------------------------------ |
+| `store.json` (`storeJson`) | `startos` | `apiToken` — generated on first init |
 
 ## Dependencies
 
@@ -73,19 +92,23 @@ None.
 
 ## Network Access and Interfaces
 
-| Interface | Id   | Type | Port | Description                     |
-| --------- | ---- | ---- | ---- | ------------------------------- |
-| Web UI    | `ui` | ui   | 80   | The web interface of Excalidraw |
+| Interface  | Id    | Type | Port | Description                                      |
+| ---------- | ----- | ---- | ---- | ------------------------------------------------ |
+| Web UI     | `ui`  | ui   | 80   | The web interface of Excalidraw                  |
+| Scenes API | `api` | api  | 80   | Same origin, path `/api`; masked (copyable URL)  |
 
-The port is bound on the `ui-multi` MultiHost and is not masked.
+Both are exported from the same `ui-multi` MultiHost origin.
 
 ## Installation and First-Run Flow
 
-Nothing to configure and nothing to reveal. Install it, start it, open the address, and draw. There is no task, no account, and no credential.
+Nothing to configure: install, start, open the address, draw. The API token is generated automatically on first init (`startos/init/apiToken.ts`); users only need it if they use the scenes API or the in-app server-scenes commands (**Show API Token** action).
 
 ## Actions
 
-None.
+| Action             | Id                 | Behavior                                        |
+| ------------------ | ------------------ | ----------------------------------------------- |
+| Show API Token     | `show-api-token`   | Displays the stored token (masked, copyable)    |
+| Rotate API Token   | `rotate-api-token` | Generates + stores a new token, returns it; the api daemon restarts via the reactive store read in `main.ts` |
 
 ## Tasks
 
@@ -93,18 +116,19 @@ None.
 
 ## Health Checks
 
-| Check     | Displayed       | Method               |
-| --------- | --------------- | -------------------- |
-| `primary` | "Web Interface" | Port 80 is listening |
+| Check     | Displayed       | Method                 |
+| --------- | --------------- | ---------------------- |
+| `api`     | "Scenes API"    | Port 3040 is listening |
+| `primary` | "Web Interface" | Port 80 is listening   |
 
 ## Backups and Restore
 
-The `main` volume is copied wholesale — `sdk.Backups.ofVolumes('main')`. In practice **the backup is empty**, because drawings are stored client-side in the browser. Users should export `.excalidraw` files for anything they want to keep durably (this is stated in `instructions.md`).
+`sdk.Backups.ofVolumes('main', 'startos')` — backups now contain the server scenes **and** the API token. The per-browser canvas is still client-side and never in backups.
 
 ## Limitations and Differences
 
 1. **No live collaboration.** Upstream's collab mode needs the separate `excalidraw-room` websocket server and an encrypted storage backend; this package serves the single-user app only.
-2. **No server-side persistence.** Drawings never touch the server; backups do not contain them.
+2. **The live canvas is client-side.** Only explicitly saved server scenes persist on the server; the working canvas remains in browser storage.
 3. **Excalidraw+** (the commercial cloud offering) is not part of the open-source app and not part of this package.
 
 ---
@@ -118,16 +142,28 @@ architectures:
   - x86_64
   - aarch64
 subcontainers:
-  - excalidraw-sub # the only container
+  - excalidraw-sub # shared by both daemons
+daemons:
+  - api # node /usr/lib/excalidraw-api/server.mjs (port 3040, localhost)
+  - primary # nginx, requires api
 volumes:
-  main: /data # mounted but unused (drawings live in the browser)
-file_models: []
-startos_managed_env_vars: []
+  main: /data # server scenes in /data/scenes
+  startos: null # store.json (apiToken), never mounted
+file_models:
+  - store.json # { apiToken } on the startos volume
+startos_managed_env_vars:
+  - EXCALIDRAW_API_TOKEN # from store.json, into the api daemon
+  - EXCALIDRAW_API_PORT # 3040
+  - EXCALIDRAW_API_DATA # /data/scenes
 dependencies: []
 interfaces:
   ui: { type: ui, port: 80 }
-actions: []
+  api: { type: api, port: 80, path: /api, masked: true }
+actions:
+  - show-api-token
+  - rotate-api-token
 tasks: []
 health_checks:
+  - api # displayed "Scenes API"
   - primary # displayed "Web Interface"
 ```

@@ -10,7 +10,9 @@ export const manifest = setupManifest({
   marketingUrl: 'https://excalidraw.com/',
   donationUrl: 'https://opencollective.com/excalidraw',
   description: { short, long },
-  volumes: ['main'],
+  // 'startos' holds package-generated state (store.json with the API token)
+  // and is never mounted into a subcontainer
+  volumes: ['main', 'startos'],
   images: {
     excalidraw: {
       source: {

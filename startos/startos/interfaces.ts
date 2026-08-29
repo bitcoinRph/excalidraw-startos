@@ -19,8 +19,24 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     path: '',
     query: {},
   })
+  // Same origin as the UI (nginx proxies /api to the sidecar), surfaced as a
+  // copyable base URL. Requests need "Authorization: Bearer <token>" — see the
+  // Show API Token action.
+  const api = sdk.createInterface(effects, {
+    name: i18n('Scenes API'),
+    id: 'api',
+    description: i18n(
+      'REST API for saving and loading .excalidraw scenes. Requires the bearer token from the Show API Token action.',
+    ),
+    type: 'api',
+    masked: true,
+    schemeOverride: null,
+    username: null,
+    path: '/api',
+    query: {},
+  })
 
-  const uiReceipt = await uiMultiOrigin.export([ui])
+  const uiReceipt = await uiMultiOrigin.export([ui, api])
 
   return [uiReceipt]
 })
