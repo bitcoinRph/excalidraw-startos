@@ -7,7 +7,7 @@ export const v_0_18_0_0 = VersionInfo.of({
     es_ES: 'Versión inicial de Excalidraw para StartOS',
     de_DE: 'Erste Veröffentlichung von Excalidraw für StartOS',
     pl_PL: 'Pierwsze wydanie Excalidraw dla StartOS',
-    fr_FR: \"Version initiale d'Excalidraw pour StartOS\",
+    fr_FR: 'Version initiale d\'Excalidraw pour StartOS',
   },
   migrations: {
     up: async ({ effects }) => {},
