@@ -6,6 +6,7 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
   const uiMultiOrigin = await uiMulti.bindPort(uiPort, {
     protocol: 'http',
+    preferredExternalPort: 80,
   })
   const ui = sdk.createInterface(effects, {
     name: i18n('Web UI'),

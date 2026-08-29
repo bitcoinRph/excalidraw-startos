@@ -19,14 +19,14 @@ Unlike most StartOS wrapper repos, the upstream source is not a submodule — th
 
 ## Building
 
-From the `startos/` directory, with the [StartOS packaging environment](https://docs.start9.com/packaging) (start-cli, docker buildx, node/npm) installed:
+With the [StartOS packaging environment](https://docs.start9.com/packaging) (start-cli, docker, node/npm, squashfs-tools) installed, initialize a packaging workspace once at the repo root, then build from `startos/`:
 
 ```sh
+start-cli s9pk init-workspace .   # once, in the repo root (see StartOS compatibility below)
 cd startos
-make            # builds excalidraw_x86_64.s9pk and excalidraw_aarch64.s9pk
-make x86        # just x86_64
-make arm        # just aarch64
-make install    # sideload onto the server configured via start-cli
+npm ci
+make x86        # excalidraw_x86_64.s9pk — or: make arm (aarch64), make (both)
+make install    # upload to the device configured in .startos/config.yaml
 ```
 
 The static site is built on the host platform inside the build stage (`FROM --platform=${BUILDPLATFORM}`), so cross-arch packing does not emulate the node build — only the tiny nginx runtime stage is per-arch.
@@ -37,12 +37,11 @@ The `.github/workflows/release-s9pk.yml` workflow builds both `.s9pk`s and publi
 
 ### StartOS compatibility
 
-Two independent version contracts matter:
+This wrapper follows the official packaging guide's current template (`start-cli s9pk init-package`): **`@start9labs/start-sdk` 2.0.9** (the current `start-sdk/v2.0.9` release), whose build system (`s9pk.mk`) ships inside the SDK npm package. It stamps `osVersion: 0.4.0-beta.10` into the manifest, so the package installs on StartOS **0.4.0-beta.10 or newer** — including the released 0.4.0.x line.
 
-- **SDK (`@start9labs/start-sdk`)**: pinned to exactly **0.4.0-beta.48**, which stamps `osVersion: 0.4.0-alpha.18` into the manifest — installable on every current StartOS 0.4.0 build. Newer SDK lines (0.4.0 final / 2.x) stamp `osVersion: 0.4.0-beta.10`, which released servers reject. Bump deliberately once a matching StartOS release exists.
-- **Packer (`start-cli`)**: always install the **latest `start-cli/*` release** from `Start9Labs/start-technologies` (e.g. `start-cli/v1.1.0`) — the dedicated release series for the CLI. Do **not** use the CLI binary attached to the plain `v0.4.0-beta.*` releases (other StartOS components): it packs an older s9pk layout that current servers reject at sideload with `file size is less than requested`.
+Pack with the **latest `start-cli/*` release** from `Start9Labs/start-technologies` (installer: `curl -fsSL https://start9.com/start-cli/install.sh | sh`). Do **not** use the CLI binary attached to other components' releases (e.g. the plain `v0.4.0-beta.*` tags) — it packs an older s9pk layout.
 
-Packing also requires a **packaging workspace**: run `start-cli s9pk init-workspace .` once in the repo root (it provisions `.startos/` with the build key — never commit it). Build-only commands pass `-H http://localhost` (see `s9pk.mk`) so the workspace's dev host profile isn't resolved during pack.
+Packing requires a **packaging workspace** in the repo root (the parent of this directory): `start-cli s9pk init-workspace .` provisions `.startos/` with the build signing key (git-ignored — never commit it). If the scaffolded `.startos/config.yaml` contains the placeholder `host: http://dev-vm.local`, comment it out (or set your real device) — the placeholder resolves nowhere and fails bare `start-cli` commands (fixed in start-cli 1.1.1).
 
 ## Image and Container Runtime
 

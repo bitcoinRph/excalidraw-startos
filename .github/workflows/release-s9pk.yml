@@ -17,6 +17,7 @@ on:
       - "public/**"
       - "package.json"
       - "yarn.lock"
+      - ".github/workflows/release-s9pk.yml"
   workflow_dispatch:
 
 concurrency:
@@ -86,10 +87,13 @@ jobs:
 
       # Current start-cli requires a packaging workspace in the parent of the
       # package directory; this provisions .startos/ (incl. the build key) at
-      # the repo checkout root.
+      # the repo checkout root. start-cli 1.1.0's init-workspace scaffolds a
+      # placeholder host (dev-vm.local) that resolves nowhere and fails bare
+      # start-cli commands, so comment it out (the fix start-cli 1.1.1 adopts).
       - name: Initialize packaging workspace
         run: |
           start-cli s9pk init-workspace ..
+          sed -i -e 's|^host:|# host:|' -e 's|^  default: http://dev-vm.local|#   default: http://dev-vm.local|' ../.startos/config.yaml
           if [ -n "$DEV_KEY" ]; then
             printf '%s' "$DEV_KEY" > ../.startos/build.key.pem
           fi

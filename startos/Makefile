@@ -1,3 +1,3 @@
-# overrides to s9pk.mk must precede the include statement
 ARCHES := x86 arm
-include s9pk.mk
+# overrides to s9pk.mk must precede the include statement
+include node_modules/@start9labs/start-sdk/s9pk.mk
