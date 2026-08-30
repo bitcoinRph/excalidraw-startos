@@ -167,3 +167,8 @@ health_checks:
   - api # displayed "Scenes API"
   - primary # displayed "Web Interface"
 ```
+
+
+## Server scene UI links
+
+CLI-created diagrams remain stored in the StartOS scenes API. For easy human review, use `excalidraw-cli open-url <scene>` to print a Web UI link like `/?serverScene=<scene>`; the UI opens that server-stored scene, asks before replacing an active canvas, and keeps the scene name as the save-back target. Public excalidraw.com links are optional exports, not the source of truth.

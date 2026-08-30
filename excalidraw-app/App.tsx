@@ -133,7 +133,12 @@ import {
   LocalData,
   localStorageQuotaExceededAtom,
 } from "./data/LocalData";
-import { isServerScenesAvailable } from "./data/serverScenes";
+import {
+  ServerScenesError,
+  getRequestedServerSceneName,
+  isServerScenesAvailable,
+  loadServerScene,
+} from "./data/serverScenes";
 import { isBrowserStorageStateNewer } from "./data/tabSync";
 import { ShareDialog, shareDialogStateAtom } from "./share/ShareDialog";
 import CollabError, { collabErrorIndicatorAtom } from "./collab/CollabError";
@@ -388,9 +393,121 @@ const ExcalidrawWrapper = () => {
   const [serverScenesDialog, setServerScenesDialog] =
     useState<ServerScenesMode | null>(null);
   const [serverScenesAvailable, setServerScenesAvailable] = useState(false);
+  const [serverScenesInitialOpenName, setServerScenesInitialOpenName] =
+    useState("");
+  const requestedServerSceneName = useRef("");
   useEffect(() => {
-    isServerScenesAvailable().then(setServerScenesAvailable);
+    isServerScenesAvailable()
+      .then(setServerScenesAvailable)
+      .catch(() => false);
   }, []);
+
+  const clearServerSceneURLParam = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("serverScene");
+    // A server-scene deep link is a StartOS scene pointer, not an
+    // excalidraw.com/share/collab import. Clear any stale hash so the loaded
+    // server scene remains the only source of truth for this navigation.
+    url.hash = "";
+    window.history.replaceState(null, "", url.toString());
+  }, []);
+
+  const applyServerSceneBlob = useCallback(
+    async (blob: Blob, sceneName?: string) => {
+      if (!excalidrawAPI) {
+        return;
+      }
+      const data = await loadFromBlob(
+        blob,
+        excalidrawAPI.getAppState(),
+        excalidrawAPI.getSceneElements(),
+      );
+      excalidrawAPI.updateScene({
+        elements: data.elements,
+        appState: {
+          ...data.appState,
+          ...(sceneName ? { name: sceneName } : {}),
+        },
+        captureUpdate: CaptureUpdateAction.IMMEDIATELY,
+      });
+      if (data.files) {
+        excalidrawAPI.addFiles(Object.values(data.files));
+      }
+    },
+    [excalidrawAPI],
+  );
+
+  const openServerSceneBlob = useCallback(
+    async (blob: Blob, sceneName?: string) => {
+      if (
+        excalidrawAPI?.getSceneElements().length &&
+        !(await openConfirmModal(shareableLinkConfirmDialog))
+      ) {
+        return false;
+      }
+      await applyServerSceneBlob(blob, sceneName);
+      return true;
+    },
+    [applyServerSceneBlob, excalidrawAPI],
+  );
+
+  const openRequestedServerScene = useCallback(
+    async (sceneName: string) => {
+      if (!excalidrawAPI || !sceneName) {
+        return;
+      }
+      requestedServerSceneName.current = "";
+      try {
+        const opened = await openServerSceneBlob(
+          await loadServerScene(sceneName),
+          sceneName,
+        );
+        clearServerSceneURLParam();
+        if (opened === false) {
+          setErrorMessage(
+            `Open from server was canceled. Use Open from server when you are ready to replace the current canvas.`,
+          );
+        }
+      } catch (error) {
+        clearServerSceneURLParam();
+        setServerScenesInitialOpenName(sceneName);
+        setServerScenesDialog("open");
+        if (!(error instanceof ServerScenesError && error.status === 401)) {
+          setErrorMessage(
+            error instanceof Error
+              ? `Could not open server scene "${sceneName}": ${error.message}`
+              : `Could not open server scene "${sceneName}".`,
+          );
+        }
+      }
+    },
+    [clearServerSceneURLParam, excalidrawAPI, openServerSceneBlob],
+  );
+
+  useEffect(() => {
+    if (!serverScenesAvailable) {
+      return;
+    }
+    requestedServerSceneName.current = getRequestedServerSceneName();
+    if (requestedServerSceneName.current) {
+      openRequestedServerScene(requestedServerSceneName.current);
+    }
+  }, [openRequestedServerScene, serverScenesAvailable]);
+
+  useEffect(() => {
+    const onURLChange = () => {
+      const sceneName = getRequestedServerSceneName();
+      if (sceneName && serverScenesAvailable) {
+        openRequestedServerScene(sceneName);
+      }
+    };
+    window.addEventListener("popstate", onURLChange);
+    window.addEventListener("hashchange", onURLChange);
+    return () => {
+      window.removeEventListener("popstate", onURLChange);
+      window.removeEventListener("hashchange", onURLChange);
+    };
+  }, [openRequestedServerScene, serverScenesAvailable]);
 
   const { editorTheme, appTheme, setAppTheme } = useHandleAppTheme();
 
@@ -1047,6 +1164,9 @@ const ExcalidrawWrapper = () => {
           isCollabEnabled={!isCollabDisabled}
           theme={appTheme}
           refresh={() => forceRefresh((prev) => !prev)}
+          serverScenesAvailable={serverScenesAvailable}
+          onServerSceneSave={() => setServerScenesDialog("save")}
+          onServerSceneOpen={() => setServerScenesDialog("open")}
         />
         <AppWelcomeScreen
           onCollabDialogOpen={onCollabDialogOpen}
@@ -1126,6 +1246,7 @@ const ExcalidrawWrapper = () => {
           <ServerScenesDialog
             mode={serverScenesDialog}
             initialName={excalidrawAPI.getName()}
+            initialOpenName={serverScenesInitialOpenName}
             getSceneJson={() =>
               serializeAsJSON(
                 excalidrawAPI.getSceneElements(),
@@ -1134,22 +1255,11 @@ const ExcalidrawWrapper = () => {
                 "local",
               )
             }
-            applyScene={async (blob) => {
-              const data = await loadFromBlob(
-                blob,
-                excalidrawAPI.getAppState(),
-                excalidrawAPI.getSceneElements(),
-              );
-              excalidrawAPI.updateScene({
-                elements: data.elements,
-                appState: data.appState,
-                captureUpdate: CaptureUpdateAction.IMMEDIATELY,
-              });
-              if (data.files) {
-                excalidrawAPI.addFiles(Object.values(data.files));
-              }
+            applyScene={openServerSceneBlob}
+            onClose={() => {
+              setServerScenesInitialOpenName("");
+              setServerScenesDialog(null);
             }}
-            onClose={() => setServerScenesDialog(null)}
           />
         )}
 
