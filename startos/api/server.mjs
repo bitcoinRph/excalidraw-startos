@@ -1,6 +1,6 @@
 // Excalidraw scenes API — a dependency-free Node HTTP server that stores
-// .excalidraw scene files on the service's data volume. It listens on
-// localhost only; nginx proxies it at /api on the service's web port.
+// .excalidraw scene files on the service's data volume. StartOS exposes it as
+// a dedicated API interface; nginx also proxies it at /api on the web port.
 //
 // Environment:
 //   EXCALIDRAW_API_TOKEN  bearer token required on every request except
@@ -198,9 +198,9 @@ const server = createServer((req, res) => {
     })
 })
 
-server.listen(PORT, '127.0.0.1', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.info(
-    `excalidraw scenes API listening on 127.0.0.1:${PORT}, data in ${DATA_DIR}, auth ${TOKEN ? 'configured' : 'NOT CONFIGURED (all requests will 503)'}`,
+    `excalidraw scenes API listening on 0.0.0.0:${PORT}, data in ${DATA_DIR}, auth ${TOKEN ? 'configured' : 'NOT CONFIGURED (all requests will 503)'}`,
   )
 })
 

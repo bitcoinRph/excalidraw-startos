@@ -21,9 +21,9 @@ const dict = {
 
   // actions/showApiToken.ts
   'Show API Token': 10,
-  'Display the bearer token required by the scenes API (the /api path of the Web UI address).': 11,
+  'Display the bearer token required by the Scenes API interface.': 11,
   'Scenes API Credentials': 12,
-  'Send this token as "Authorization: Bearer <token>" on every API request. The API lives at the /api path of the Web UI address.': 13,
+  'Send this token as "Authorization: Bearer ***" on every API request. Use the Scenes API interface address for CLI/script access; the Web UI also proxies the API at /api.': 13,
   'API Token': 14,
   'Not generated yet — restart the service': 15,
 

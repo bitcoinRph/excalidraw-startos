@@ -38,10 +38,10 @@ The first use asks for your **API token** — get it from the service's **Action
 
 ## Scenes API (for CLIs and scripts)
 
-The same storage is exposed as a small REST API at the `/api` path of the Web UI address (also shown as the **Scenes API** interface on the Dashboard). Every request needs the bearer token from **Actions → Show API Token**; rotate it any time with **Actions → Rotate API Token**.
+The same storage is exposed as a small REST API through a dedicated **Scenes API** interface on the Dashboard. Use that interface address for CLIs and scripts; the Web UI still proxies the same API at `/api` for in-app server scenes. Every request needs the bearer token from **Actions → Show API Token**; rotate it any time with **Actions → Rotate API Token**.
 
 ```sh
-BASE=https://<your-excalidraw-address>   # Web UI address, no trailing slash
+BASE=http://<scenes-api-interface-address>   # Scenes API interface address, no trailing slash
 TOKEN=<from Show API Token>
 
 curl -H "Authorization: Bearer $TOKEN" $BASE/api/scenes                    # list scenes

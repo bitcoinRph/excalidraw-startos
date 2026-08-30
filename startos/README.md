@@ -68,7 +68,7 @@ The browser canvas itself still lives in the **browser's** local storage on the 
 
 ## Scenes API
 
-A dependency-free Node server (`startos/api/server.mjs`) listening on localhost:3040, reverse-proxied by nginx at the `/api` path of the UI port. Bearer-token auth (`Authorization: Bearer <token>`); fails closed (503) if no token is configured; `/api/health` is unauthenticated.
+A dependency-free Node server (`startos/api/server.mjs`) listening on port 3040 on all container interfaces. StartOS exposes it as a dedicated **Scenes API** interface for CLIs/scripts, and nginx also reverse-proxies it at the `/api` path of the UI port for same-origin browser use. Bearer-token auth (`Authorization: Bearer <token>`) fails closed (503) if no token is configured; `/api/health` is unauthenticated.
 
 | Route                 | Method | Purpose                             |
 | --------------------- | ------ | ----------------------------------- |
@@ -95,9 +95,9 @@ None.
 | Interface  | Id    | Type | Port | Description                                      |
 | ---------- | ----- | ---- | ---- | ------------------------------------------------ |
 | Web UI     | `ui`  | ui   | 80   | The web interface of Excalidraw                  |
-| Scenes API | `api` | api  | 80   | Same origin, path `/api`; masked (copyable URL)  |
+| Scenes API | `api` | api  | 3040 | Dedicated API interface for CLIs/scripts; Web UI also proxies `/api` |
 
-Both are exported from the same `ui-multi` MultiHost origin.
+The Web UI and Scenes API are exported from separate MultiHost origins so StartOS surfaces a distinct API address/port for CLI use.
 
 ## Installation and First-Run Flow
 
@@ -158,7 +158,7 @@ startos_managed_env_vars:
 dependencies: []
 interfaces:
   ui: { type: ui, port: 80 }
-  api: { type: api, port: 80, path: /api, masked: true }
+  api: { type: api, port: 3040, auth: bearer token }
 actions:
   - show-api-token
   - rotate-api-token
