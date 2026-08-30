@@ -7,7 +7,7 @@ export const showApiToken = sdk.Action.withoutInput(
   async () => ({
     name: i18n('Show API Token'),
     description: i18n(
-      'Display the bearer token required by the scenes API (the /api path of the Web UI address).',
+      'Display the bearer token required by the Scenes API interface.',
     ),
     warning: null,
     allowedStatuses: 'any',
@@ -21,7 +21,7 @@ export const showApiToken = sdk.Action.withoutInput(
       version: '1',
       title: i18n('Scenes API Credentials'),
       message: i18n(
-        'Send this token as "Authorization: Bearer <token>" on every API request. The API lives at the /api path of the Web UI address.',
+        'Send this token as "Authorization: Bearer ***" on every API request. Use the Scenes API interface address for CLI/script access; the Web UI also proxies the API at /api.',
       ),
       result: {
         type: 'single',

@@ -1,6 +1,6 @@
 import { i18n } from './i18n'
 import { sdk } from './sdk'
-import { uiPort } from './utils'
+import { apiPort, uiPort } from './utils'
 
 export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
   const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
@@ -19,9 +19,15 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     path: '',
     query: {},
   })
-  // Same origin as the UI (nginx proxies /api to the sidecar), surfaced as a
-  // copyable base URL. Requests need "Authorization: Bearer <token>" — see the
-  // Show API Token action.
+  const uiReceipt = await uiMultiOrigin.export([ui])
+
+  const apiMulti = sdk.MultiHost.of(effects, 'api-multi')
+  const apiMultiOrigin = await apiMulti.bindPort(apiPort, {
+    protocol: 'http',
+    preferredExternalPort: apiPort,
+  })
+  // Dedicated CLI/script interface. It serves the same API daemon directly;
+  // the UI still reaches it through nginx at /api for same-origin browser use.
   const api = sdk.createInterface(effects, {
     name: i18n('Scenes API'),
     id: 'api',
@@ -29,14 +35,13 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
       'REST API for saving and loading .excalidraw scenes. Requires the bearer token from the Show API Token action.',
     ),
     type: 'api',
-    masked: true,
+    masked: false,
     schemeOverride: null,
     username: null,
-    path: '/api',
+    path: '',
     query: {},
   })
+  const apiReceipt = await apiMultiOrigin.export([api])
 
-  const uiReceipt = await uiMultiOrigin.export([ui, api])
-
-  return [uiReceipt]
+  return [uiReceipt, apiReceipt]
 })
