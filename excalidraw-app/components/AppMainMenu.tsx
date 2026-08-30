@@ -2,6 +2,8 @@ import {
   loginIcon,
   ExcalLogo,
   eyeIcon,
+  LoadIcon,
+  save as saveIcon,
 } from "@excalidraw/excalidraw/components/icons";
 import { useI18n } from "@excalidraw/excalidraw/i18n";
 import { MainMenu } from "@excalidraw/excalidraw/index";
@@ -22,12 +24,25 @@ export const AppMainMenu: React.FC<{
   isCollabEnabled: boolean;
   theme: Theme | "system";
   refresh: () => void;
+  serverScenesAvailable: boolean;
+  onServerSceneSave: () => void;
+  onServerSceneOpen: () => void;
 }> = React.memo((props) => {
   const { t } = useI18n();
   return (
     <MainMenu>
       <MainMenu.DefaultItems.LoadScene />
+      {props.serverScenesAvailable && (
+        <MainMenu.Item icon={LoadIcon} onSelect={props.onServerSceneOpen}>
+          Open from server
+        </MainMenu.Item>
+      )}
       <MainMenu.DefaultItems.SaveToActiveFile />
+      {props.serverScenesAvailable && (
+        <MainMenu.Item icon={saveIcon} onSelect={props.onServerSceneSave}>
+          Save to server
+        </MainMenu.Item>
+      )}
       <MainMenu.DefaultItems.Export />
       <MainMenu.DefaultItems.SaveAsImage />
       {props.isCollabEnabled && (

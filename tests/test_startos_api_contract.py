@@ -12,7 +12,7 @@ def read(rel: str) -> str:
 class StartosApiContractTest(unittest.TestCase):
     def test_current_package_version_supersedes_bad_0181_release(self):
         current = read('startos/startos/versions/current.ts')
-        self.assertIn("version: '0.18.1:1'", current)
+        self.assertIn("version: '0.18.1:2'", current)
         self.assertIn('separate StartOS API interface', current)
 
     def test_api_has_separate_startos_binding_for_cli_discovery(self):
@@ -39,6 +39,33 @@ class StartosApiContractTest(unittest.TestCase):
         server = read('startos/api/server.mjs')
         self.assertIn("server.listen(PORT, '0.0.0.0'", server)
         self.assertNotIn("server.listen(PORT, '127.0.0.1'", server)
+
+    def test_web_ui_exposes_server_scene_browser_in_main_menu(self):
+        menu = read('excalidraw-app/components/AppMainMenu.tsx')
+        self.assertIn('Open from server', menu)
+        self.assertIn('Save to server', menu)
+        self.assertIn('serverScenesAvailable', menu)
+
+    def test_web_ui_supports_deep_links_to_server_scenes(self):
+        app = read('excalidraw-app/App.tsx')
+        client = read('excalidraw-app/data/serverScenes.ts')
+        self.assertIn('getRequestedServerSceneName', app)
+        self.assertIn('loadServerScene(sceneName)', app)
+        self.assertIn('serverSceneURLParam = "serverScene"', client)
+
+    def test_server_scene_deep_links_are_confirmation_safe(self):
+        app = read('excalidraw-app/App.tsx')
+        self.assertIn('openConfirmModal(shareableLinkConfirmDialog)', app)
+        self.assertIn('clearServerSceneURLParam()', app)
+        self.assertIn('...(sceneName ? { name: sceneName } : {})', app)
+        self.assertIn('applyScene: (blob: Blob, sceneName?: string) => Promise<boolean | void>', read('excalidraw-app/components/ServerScenesDialog.tsx'))
+
+    def test_server_scene_links_do_not_preserve_share_or_collab_state(self):
+        client = read('excalidraw-app/data/serverScenes.ts')
+        app = read('excalidraw-app/App.tsx')
+        self.assertIn('url.search = ', client)
+        self.assertIn('url.hash = ', client)
+        self.assertIn('url.hash = ', app)
 
 
 if __name__ == '__main__':

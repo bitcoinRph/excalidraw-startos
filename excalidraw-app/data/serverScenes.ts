@@ -7,6 +7,42 @@
  */
 
 const TOKEN_STORAGE_KEY = "excalidraw-server-scenes-token";
+const SERVER_SCENE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._()-]{0,127}$/;
+
+export const validateServerSceneName = (name: string) => {
+  if (!SERVER_SCENE_NAME_RE.test(name) || name.includes("..")) {
+    throw new ServerScenesError(400, "invalid scene name");
+  }
+};
+
+export const serverSceneURLParam = "serverScene";
+
+export const getRequestedServerSceneName = (): string => {
+  try {
+    const sceneName =
+      new URL(window.location.href).searchParams
+        .get(serverSceneURLParam)
+        ?.trim() || "";
+    if (sceneName) {
+      validateServerSceneName(sceneName);
+    }
+    return sceneName;
+  } catch {
+    return "";
+  }
+};
+
+export const serverSceneOpenURL = (
+  name: string,
+  base = window.location.href,
+): string => {
+  validateServerSceneName(name);
+  const url = new URL(base);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set(serverSceneURLParam, name);
+  return url.toString();
+};
 
 export type ServerSceneInfo = {
   name: string;
@@ -79,10 +115,12 @@ export const listServerScenes = async (): Promise<ServerSceneInfo[]> => {
 };
 
 export const loadServerScene = async (name: string): Promise<Blob> => {
+  validateServerSceneName(name);
   return (await request(`scenes/${encodeURIComponent(name)}`)).blob();
 };
 
 export const saveServerScene = async (name: string, sceneJson: string) => {
+  validateServerSceneName(name);
   await request(`scenes/${encodeURIComponent(name)}`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
@@ -91,5 +129,6 @@ export const saveServerScene = async (name: string, sceneJson: string) => {
 };
 
 export const deleteServerScene = async (name: string) => {
+  validateServerSceneName(name);
   await request(`scenes/${encodeURIComponent(name)}`, { method: "DELETE" });
 };

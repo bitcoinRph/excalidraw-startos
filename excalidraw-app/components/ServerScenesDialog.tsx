@@ -2,7 +2,7 @@ import { Dialog } from "@excalidraw/excalidraw/components/Dialog";
 import { FilledButton } from "@excalidraw/excalidraw/components/FilledButton";
 import { TextField } from "@excalidraw/excalidraw/components/TextField";
 import { TrashIcon } from "@excalidraw/excalidraw/components/icons";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ServerScenesError,
@@ -27,14 +27,16 @@ export type ServerScenesMode = "save" | "open";
 export const ServerScenesDialog = ({
   mode,
   initialName,
+  initialOpenName,
   getSceneJson,
   applyScene,
   onClose,
 }: {
   mode: ServerScenesMode;
   initialName: string;
+  initialOpenName?: string;
   getSceneJson: () => string;
-  applyScene: (blob: Blob) => Promise<void>;
+  applyScene: (blob: Blob, sceneName?: string) => Promise<boolean | void>;
   onClose: () => void;
 }) => {
   const [scenes, setScenes] = useState<ServerSceneInfo[] | null>(null);
@@ -43,6 +45,7 @@ export const ServerScenesDialog = ({
   const [needsToken, setNeedsToken] = useState(!getServerScenesToken());
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const autoOpenAttempted = useRef(false);
 
   const fail = (err: unknown) => {
     if (err instanceof ServerScenesError && err.status === 401) {
@@ -101,9 +104,45 @@ export const ServerScenesDialog = ({
 
   const onOpen = (sceneName: string) =>
     run(async () => {
-      await applyScene(await loadServerScene(sceneName));
-      onClose();
+      if (
+        (await applyScene(await loadServerScene(sceneName), sceneName)) !==
+        false
+      ) {
+        onClose();
+      }
     });
+
+  useEffect(() => {
+    autoOpenAttempted.current = false;
+  }, [initialOpenName]);
+
+  useEffect(() => {
+    if (
+      mode !== "open" ||
+      !initialOpenName ||
+      needsToken ||
+      busy ||
+      !scenes ||
+      autoOpenAttempted.current
+    ) {
+      return;
+    }
+    autoOpenAttempted.current = true;
+    if (!scenes.some((scene) => scene.name === initialOpenName)) {
+      setError(`No server scene named "${initialOpenName}" was found.`);
+      return;
+    }
+    setBusy(true);
+    loadServerScene(initialOpenName)
+      .then((blob) => applyScene(blob, initialOpenName))
+      .then((opened) => {
+        if (opened !== false) {
+          onClose();
+        }
+      })
+      .catch(fail)
+      .finally(() => setBusy(false));
+  }, [applyScene, busy, initialOpenName, mode, needsToken, onClose, scenes]);
 
   const onDelete = (sceneName: string) =>
     run(async () => {
