@@ -93,7 +93,6 @@ export const convertMermaidToExcalidraw = async ({
         return { success: false, error: originalParseError };
       }
     }
-
     const { elements, files = {} } = ret;
     setError(null);
 
