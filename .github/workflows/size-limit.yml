@@ -26,6 +26,11 @@ jobs:
         env:
           CI: true
       - uses: andresz1/size-limit-action@e7493a72a44b113341c0cf6186ab49c17c4b65c1 # v1
+        # Upstream v0.18.1 reports zero-byte size-limit entries on both head
+        # and base in this fork; keep the PR comment as advisory so StartOS
+        # security/package release gates are not blocked by a non-actionable
+        # upstream app-size comparator artifact.
+        continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           build_script: build:esm
